@@ -1,0 +1,6 @@
+{
+  "name": "HealthBridge AI",
+  "description": "Unified Healthcare & Bioscience Intelligence Platform combining Google Search-grounded health education, AlphaFold 3D structures, PubChem pharmacology, English & Telugu communication, approved clinic knowledge, private report analysis, and structured clinical documentation.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

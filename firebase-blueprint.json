@@ -1,0 +1,361 @@
+{
+  "entities": {
+    "ClinicInfo": {
+      "title": "ClinicInfo",
+      "description": "Approved clinic metadata, contact details, opening hours, and appointment instructions.",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Official clinic display name.",
+          "minLength": 2,
+          "maxLength": 120
+        },
+        "address": {
+          "type": "string",
+          "description": "Physical clinic address.",
+          "minLength": 5,
+          "maxLength": 300
+        },
+        "phone": {
+          "type": "string",
+          "description": "Reception phone number.",
+          "minLength": 5,
+          "maxLength": 40
+        },
+        "emergencyPhone": {
+          "type": "string",
+          "description": "Emergency triage phone number.",
+          "minLength": 3,
+          "maxLength": 40
+        },
+        "hours": {
+          "type": "string",
+          "description": "Published clinic operating hours.",
+          "minLength": 5,
+          "maxLength": 200
+        },
+        "bookingUrl": {
+          "type": "string",
+          "description": "Official external booking portal link.",
+          "minLength": 5,
+          "maxLength": 300
+        },
+        "departments": {
+          "type": "string",
+          "description": "Summary of active clinical departments.",
+          "minLength": 2,
+          "maxLength": 500
+        },
+        "doctorsSummary": {
+          "type": "string",
+          "description": "Approved roster of doctors and qualifications.",
+          "minLength": 2,
+          "maxLength": 1000
+        },
+        "appointmentInstructions": {
+          "type": "string",
+          "description": "Instructions for scheduling and preparing for visits.",
+          "minLength": 5,
+          "maxLength": 800
+        },
+        "visibility": {
+          "type": "string",
+          "description": "Visibility scope of the clinic record.",
+          "enum": ["public"]
+        },
+        "isSampleDataset": {
+          "type": "boolean",
+          "description": "Explicitly marks whether this is demonstration clinic data."
+        },
+        "authorId": {
+          "type": "string",
+          "description": "UID of the authorized staff member who created or updated the record.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of creation."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of last update."
+        }
+      },
+      "required": [
+        "name",
+        "address",
+        "phone",
+        "emergencyPhone",
+        "hours",
+        "bookingUrl",
+        "departments",
+        "doctorsSummary",
+        "appointmentInstructions",
+        "visibility",
+        "isSampleDataset",
+        "authorId",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "ClinicFaq": {
+      "title": "ClinicFaq",
+      "description": "Approved bilingual clinic FAQ entry maintained by authorized clinic staff.",
+      "type": "object",
+      "properties": {
+        "clinicId": {
+          "type": "string",
+          "description": "ID of the parent clinic record.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "category": {
+          "type": "string",
+          "description": "FAQ topic category.",
+          "enum": ["general", "hours", "departments", "appointments", "billing", "emergency"]
+        },
+        "question": {
+          "type": "string",
+          "description": "Approved question in English.",
+          "minLength": 5,
+          "maxLength": 300
+        },
+        "answer": {
+          "type": "string",
+          "description": "Approved answer in English.",
+          "minLength": 5,
+          "maxLength": 1500
+        },
+        "questionTe": {
+          "type": "string",
+          "description": "Approved question in Telugu.",
+          "minLength": 1,
+          "maxLength": 500
+        },
+        "answerTe": {
+          "type": "string",
+          "description": "Approved answer in Telugu.",
+          "minLength": 1,
+          "maxLength": 2000
+        },
+        "visibility": {
+          "type": "string",
+          "description": "Public visibility marker.",
+          "enum": ["public"]
+        },
+        "authorId": {
+          "type": "string",
+          "description": "UID of the authorized staff member.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of creation."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of last update."
+        }
+      },
+      "required": [
+        "clinicId",
+        "category",
+        "question",
+        "answer",
+        "questionTe",
+        "answerTe",
+        "visibility",
+        "authorId",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "EncryptedPatientRecord": {
+      "title": "EncryptedPatientRecord",
+      "description": "Client-side AES-256-GCM encrypted medical record or diagnostic verification report owned by a single authenticated user.",
+      "type": "object",
+      "properties": {
+        "ownerId": {
+          "type": "string",
+          "description": "UID of the patient/user who owns this encrypted record.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "recordTitle": {
+          "type": "string",
+          "description": "Non-sensitive user-assigned label for the record.",
+          "minLength": 2,
+          "maxLength": 160
+        },
+        "recordCategory": {
+          "type": "string",
+          "description": "Type of encrypted medical record.",
+          "enum": ["lab_report", "imaging_verification", "structured_note", "discharge_summary"]
+        },
+        "cipherText": {
+          "type": "string",
+          "description": "Base64-encoded AES-256-GCM encrypted payload.",
+          "minLength": 10,
+          "maxLength": 50000
+        },
+        "iv": {
+          "type": "string",
+          "description": "Base64-encoded initialization vector for AES-256-GCM.",
+          "minLength": 8,
+          "maxLength": 128
+        },
+        "algorithm": {
+          "type": "string",
+          "description": "Encryption algorithm identifier.",
+          "enum": ["AES-256-GCM"]
+        },
+        "status": {
+          "type": "string",
+          "description": "Lifecycle status of the record.",
+          "enum": ["active", "archived"]
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of creation."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of last update."
+        }
+      },
+      "required": [
+        "ownerId",
+        "recordTitle",
+        "recordCategory",
+        "cipherText",
+        "iv",
+        "algorithm",
+        "status",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "StructuredClinicalNote": {
+      "title": "StructuredClinicalNote",
+      "description": "De-identified structured clinical note validated against the MedStruct schema.",
+      "type": "object",
+      "properties": {
+        "ownerId": {
+          "type": "string",
+          "description": "UID of the clinician/user who authored the structured note.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "noteTitle": {
+          "type": "string",
+          "description": "Title or encounter reference.",
+          "minLength": 2,
+          "maxLength": 160
+        },
+        "presentingComplaint": {
+          "type": "string",
+          "description": "Primary presenting complaint extracted from the note.",
+          "minLength": 1,
+          "maxLength": 500
+        },
+        "structuredPayload": {
+          "type": "string",
+          "description": "Validated structured clinical note representation.",
+          "minLength": 2,
+          "maxLength": 25000
+        },
+        "validationStatus": {
+          "type": "string",
+          "description": "Schema validation state.",
+          "enum": ["VALIDATED", "NEEDS_CORRECTION"]
+        },
+        "reviewStatus": {
+          "type": "string",
+          "description": "Human clinician review state (APPROVED_FINAL is terminal).",
+          "enum": ["PENDING_REVIEW", "APPROVED_FINAL"]
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of creation."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of last update."
+        }
+      },
+      "required": [
+        "ownerId",
+        "noteTitle",
+        "presentingComplaint",
+        "structuredPayload",
+        "validationStatus",
+        "reviewStatus",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "AdminRecord": {
+      "title": "AdminRecord",
+      "description": "Trusted admin role mapping document.",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "description": "Admin user UID.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "role": {
+          "type": "string",
+          "description": "Admin role designation.",
+          "enum": ["clinic_admin"]
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of creation."
+        }
+      },
+      "required": ["uid", "role", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/clinics/{clinicId}": {
+      "schema": { "$ref": "#/entities/ClinicInfo" },
+      "description": "Approved clinic information profiles readable when visibility is public and writable by verified clinic admins."
+    },
+    "/clinic_faqs/{faqId}": {
+      "schema": { "$ref": "#/entities/ClinicFaq" },
+      "description": "Approved bilingual clinic FAQs linked to a parent clinic."
+    },
+    "/patient_records/{recordId}": {
+      "schema": { "$ref": "#/entities/EncryptedPatientRecord" },
+      "description": "Private AES-256-GCM encrypted patient health records strictly isolated to their owner."
+    },
+    "/clinical_notes/{noteId}": {
+      "schema": { "$ref": "#/entities/StructuredClinicalNote" },
+      "description": "Validated structured clinical notes with clinician review state locking."
+    },
+    "/admins/{adminId}": {
+      "schema": { "$ref": "#/entities/AdminRecord" },
+      "description": "Trusted administrator lookup table."
+    }
+  }
+}
