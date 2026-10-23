@@ -29,6 +29,7 @@ import { PrivateMedModule } from './components/PrivateMedModule';
 import { MedStructModule } from './components/MedStructModule';
 import { BioScienceModule } from './components/BioScienceModule';
 import { GovernanceAndStatusView } from './components/GovernanceAndStatusView';
+import { apiFetchStatus } from './lib/apiClient';
 
 export default function App() {
   const [activeTab, setActiveTabState] = useState<ActiveWorkspace>(() =>
@@ -102,8 +103,7 @@ export default function App() {
 
     testFirestoreConnection().then((res) => setFirestoreConnected(res.connected));
 
-    fetch('/api/status')
-      .then((r) => r.json())
+    apiFetchStatus()
       .then((data) => setServiceStatus(data))
       .catch(() => {});
 

@@ -34,6 +34,7 @@ import {
   ParsedReportMetric,
 } from '../shared/clinicalCore';
 import { SYNTHETIC_LAB_REPORTS } from '../shared/sampleData';
+import { apiPostPrivateMedVerify } from '../lib/apiClient';
 
 interface PrivateMedModuleProps {
   language: 'en' | 'te';
@@ -546,21 +547,13 @@ const PrivateMedModuleComponent: React.FC<PrivateMedModuleProps> = ({
     setCloudResult(null);
 
     try {
-      const res = await fetch('/api/private-med/cloud-verify', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          explicitCloudConsent: true,
-          reportText,
-          imageBase64: uploadedImageBase64,
-          imageMimeType: uploadedImageMime,
-          language,
-        }),
+      const data = await apiPostPrivateMedVerify({
+        explicitCloudConsent: true,
+        reportText,
+        imageBase64: uploadedImageBase64,
+        imageMimeType: uploadedImageMime,
+        language,
       });
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.message || 'Multimodal verification failed.');
-      }
       setCloudResult(data);
     } catch (err) {
       setCloudError(err instanceof Error ? err.message : 'Error verifying report.');

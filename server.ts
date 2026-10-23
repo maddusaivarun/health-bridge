@@ -30,7 +30,7 @@ import {
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const PORT = 3000;
+const PORT = Number(process.env.PORT) || 3000;
 
 function getGeminiClient(): GoogleGenAI {
   const apiKey = process.env.GEMINI_API_KEY;
@@ -787,7 +787,7 @@ async function resolveBioScienceEntity(
       molecularFormula: d.formula,
       molecularWeight: mwNum,
       canonicalSmiles: d.smiles,
-      structureImageUrl: `/api/bioscience/pubchem-image/${d.cid}`,
+      structureImageUrl: `https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/cid/${d.cid}/PNG?image_size=300x300`,
       properties: {
         xlogp: d.xlogp,
         tpsa: d.tpsa,
@@ -2651,6 +2651,14 @@ ${resolvedData ? JSON.stringify(resolvedData, null, 2).slice(0, 3500) : 'None pr
       const safeErr = formatSafeServerError(err);
       return res.status(safeErr.status).json(safeErr);
     }
+  });
+
+  // Ensure any unknown /api/* route always returns valid JSON (never HTML/text)
+  app.all('/api/*', (req: Request, res: Response) => {
+    res.status(404).json({
+      error: 'API_ENDPOINT_NOT_FOUND',
+      message: `API endpoint ${req.method} ${req.originalUrl} was not found.`,
+    });
   });
 
   if (process.env.NODE_ENV !== 'production') {

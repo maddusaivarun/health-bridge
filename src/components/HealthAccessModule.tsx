@@ -13,6 +13,7 @@ import {
   writeLocalStorage,
   HealthAccessCachedState,
 } from '../lib/storageCache';
+import { apiPostHealthAccess } from '../lib/apiClient';
 
 interface GlossaryItem {
   term: string;
@@ -92,21 +93,13 @@ const HealthAccessModuleComponent: React.FC<HealthAccessModuleProps> = ({
     setError(null);
 
     try {
-      const res = await fetch('/api/health-access', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          text: sourceText,
-          sourceLanguage,
-          targetLanguage,
-          mode,
-          followUpQuestion: followUpQuestion.trim(),
-        }),
+      const data = await apiPostHealthAccess({
+        text: sourceText,
+        sourceLanguage,
+        targetLanguage,
+        mode,
+        followUpQuestion: followUpQuestion.trim(),
       });
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.message || 'Unable to process multilingual health communication.');
-      }
       setResult(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error communicating with HealthAccess.');

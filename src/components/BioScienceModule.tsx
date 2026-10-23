@@ -27,6 +27,7 @@ import {
   BioScienceCachedState,
 } from '../lib/storageCache';
 import { GroundedSourceCitation, getSafeCitationUrl } from '../shared/clinicalCore';
+import { apiFetchBioScienceResolve, apiPostBioScienceAnalyze } from '../lib/apiClient';
 
 interface BioScienceModuleProps {
   language: 'en' | 'te';
@@ -234,11 +235,7 @@ const BioScienceModuleComponent: React.FC<BioScienceModuleProps> = ({
     setError(null);
 
     try {
-      const res = await fetch(`/api/bioscience/resolve?q=${encodeURIComponent(term)}&domain=${activeDomain}`);
-      if (!res.ok) {
-        throw new Error(`Failed to resolve bioscience target (${res.status})`);
-      }
-      const data: BioScienceResolvedPayload = await res.json();
+      const data = await apiFetchBioScienceResolve(term, activeDomain);
       setResolvedData(data);
       setSearchQuery(term);
 
@@ -254,18 +251,13 @@ const BioScienceModuleComponent: React.FC<BioScienceModuleProps> = ({
   const handleGenerateAnalysis = async (targetQuery: string, dataToAnalyze: BioScienceResolvedPayload) => {
     setAnalyzing(true);
     try {
-      const res = await fetch('/api/bioscience/analyze', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          query: targetQuery,
-          domain: activeDomain,
-          resolvedData: dataToAnalyze,
-          language,
-        }),
+      const report = await apiPostBioScienceAnalyze({
+        query: targetQuery,
+        domain: activeDomain,
+        resolvedData: dataToAnalyze,
+        language,
       });
-      if (res.ok) {
-        const report: BioScienceAnalysisPayload = await res.json();
+      if (report) {
         setAnalysisReport(report);
       }
     } catch {

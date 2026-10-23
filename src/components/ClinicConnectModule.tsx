@@ -34,6 +34,7 @@ import {
   ApprovedClinicProfile,
   ApprovedClinicFaqItem,
 } from '../shared/sampleData';
+import { apiPostClinicConnect } from '../lib/apiClient';
 
 interface ClinicConnectModuleProps {
   language: 'en' | 'te';
@@ -166,21 +167,13 @@ const ClinicConnectModuleComponent: React.FC<ClinicConnectModuleProps> = ({
     setQaError(null);
 
     try {
-      const res = await fetch('/api/clinic-connect', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          question: activeQ,
-          language,
-          clinicProfile,
-          faqs,
-          doctors: SAMPLE_APPROVED_DOCTORS,
-        }),
+      const data = await apiPostClinicConnect({
+        question: activeQ,
+        language,
+        clinicProfile,
+        faqs,
+        doctors: SAMPLE_APPROVED_DOCTORS,
       });
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.message || 'Unable to retrieve clinic response.');
-      }
       setQaResult(data);
     } catch (err) {
       setQaError(err instanceof Error ? err.message : 'ClinicConnect service error.');

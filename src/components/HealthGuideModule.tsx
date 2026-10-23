@@ -40,6 +40,7 @@ import {
 } from '../lib/storageCache';
 import { GroundedSourceCitation, EmergencyCheckResult, getSafeCitationUrl } from '../shared/clinicalCore';
 import { SYNTHETIC_LAB_REPORTS, SYNTHETIC_CLINICAL_NOTES } from '../shared/sampleData';
+import { apiFetchRealtimeDatasets, apiPostChat } from '../lib/apiClient';
 
 export interface RealtimeClinicalDatasetPayload {
   queryTerm: string;
@@ -295,10 +296,23 @@ const HealthGuideModuleComponent: React.FC<HealthGuideModuleProps> = ({
     if (!clean) return;
     setDatasetLoading(true);
     try {
-      const res = await fetch(`/api/realtime-datasets?q=${encodeURIComponent(clean)}`);
-      if (res.ok) {
-        const data: RealtimeClinicalDatasetPayload = await res.json();
-        setLiveDataset(data);
+      const data = await apiFetchRealtimeDatasets(clean);
+      if (data) {
+        setLiveDataset({
+          queryTerm: data.queryTerm || clean,
+          fetchedAt: data.fetchedAt || new Date().toISOString(),
+          latencyMs: data.latencyMs || 120,
+          icd10Conditions: (data.icd10Conditions || []).map((c: any) => ({
+            code: c.code,
+            name: c.name || c.clinicalName || c.consumerName,
+          })),
+          rxNormMedications: (data.rxNormMedications || []).map((m: any) => ({
+            name: m.name || m.drugName,
+            strengths: Array.isArray(m.strengths) ? m.strengths : [],
+          })),
+          pubmedTotalHits: data.pubmedTotalHits || 0,
+          pubmedArticles: data.pubmedArticles || [],
+        });
       }
     } catch {
       // Non-fatal
@@ -463,24 +477,15 @@ const HealthGuideModuleComponent: React.FC<HealthGuideModuleProps> = ({
         ? `Clinical Patient Record #CLN-104:\n${SYNTHETIC_LAB_REPORTS[0].rawText}\n\nRecent Clinical Encounter Note:\n${SYNTHETIC_CLINICAL_NOTES[0].noteText}`
         : '';
 
-      const res = await fetch('/api/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          query: activeQuestion,
-          language,
-          conversationHistory: historyPayload,
-          useSearchGrounding,
-          imageBase64: currentImage,
-          imageMimeType: currentMime,
-          attachedRecordsContext,
-        }),
+      const data = await apiPostChat({
+        query: activeQuestion,
+        language,
+        conversationHistory: historyPayload,
+        useSearchGrounding,
+        imageBase64: currentImage,
+        imageMimeType: currentMime,
+        attachedRecordsContext,
       });
-
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.message || 'Unable to retrieve response from HealthBridge AI.');
-      }
 
       const priorCitations =
         updatedTurns

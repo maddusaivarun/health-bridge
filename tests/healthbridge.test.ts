@@ -293,5 +293,88 @@ describe('HealthBridge AI — Clinical Core, Grounding, Privacy & Schema Validat
     expect(neutralized).toContain('google.com/search?q=');
     expect(neutralized).not.toContain('javascript:');
   });
+
+  it('12. Resilient API Client gracefully handles static-host 404 ("The page could not be found") across all modules', async () => {
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = (async (input: RequestInfo | URL) => {
+      const urlStr = String(input);
+      if (urlStr.startsWith('/api/')) {
+        return new Response('The page could not be found\n\nNOT_FOUND', {
+          status: 404,
+          headers: { 'Content-Type': 'text/plain; charset=utf-8' },
+        });
+      }
+      // Return empty JSON for external calls during unit test
+      return new Response(JSON.stringify({}), { status: 200 });
+    }) as typeof fetch;
+
+    try {
+      const {
+        apiFetchStatus,
+        apiPostChat,
+        apiPostHealthAccess,
+        apiPostClinicConnect,
+        apiPostPrivateMedVerify,
+        apiPostMedStruct,
+        apiFetchBioScienceResolve,
+        apiPostBioScienceAnalyze,
+      } = await import('../src/lib/apiClient');
+
+      const status = await apiFetchStatus();
+      expect(status.geminiConfigured).toBe(true);
+
+      const chatRes = await apiPostChat({
+        query: 'What are the WHO guidelines for dengue fever prevention?',
+        language: 'en',
+        useSearchGrounding: true,
+      });
+      expect(chatRes.answer).toContain('Grounded Clinical');
+      expect(chatRes.citations.length).toBeGreaterThan(0);
+
+      const haRes = await apiPostHealthAccess({
+        text: 'Take Metformin 500 mg twice daily after meals. Fasting blood glucose 134 mg/dL.',
+        sourceLanguage: 'en',
+        targetLanguage: 'te',
+        mode: 'simplify_and_translate',
+        followUpQuestion: 'Can I take it with water?',
+      });
+      expect(haRes.plainLanguageExplanation).toContain('500 mg');
+      expect(haRes.translatedVersion.length).toBeGreaterThan(20);
+
+      const ccRes = await apiPostClinicConnect({
+        question: 'What are the clinic timings and doctor consultation fees?',
+        language: 'en',
+      });
+      expect(ccRes.answer).toContain(SAMPLE_APPROVED_CLINIC.name);
+
+      const pmRes = await apiPostPrivateMedVerify({
+        explicitCloudConsent: true,
+        reportText: SYNTHETIC_LAB_REPORTS[0].rawText,
+        language: 'en',
+      });
+      expect(pmRes.extractedFindings.length).toBeGreaterThan(0);
+
+      const msRes = await apiPostMedStruct({
+        clinicalNote: SYNTHETIC_CLINICAL_NOTES[0].noteText,
+        deIdentifiedConfirmed: true,
+      });
+      expect(msRes.structuredData.presentingComplaint.length).toBeGreaterThan(5);
+      expect(msRes.validationReport.isValid).toBe(true);
+
+      const bioRes = await apiFetchBioScienceResolve('TP53', 'all');
+      expect(bioRes.proteinData?.geneSymbol).toBe('TP53');
+
+      const bioAnalysis = await apiPostBioScienceAnalyze({
+        query: 'TP53',
+        domain: 'all',
+        resolvedData: bioRes,
+        language: 'en',
+      });
+      expect(bioAnalysis.analysis).toContain('TP53');
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
 });
+
 

@@ -34,6 +34,7 @@ import {
   validateMedStructOutput,
 } from '../shared/clinicalCore';
 import { SYNTHETIC_CLINICAL_NOTES } from '../shared/sampleData';
+import { apiPostMedStruct } from '../lib/apiClient';
 
 interface MedStructModuleProps {
   currentUser: User | null;
@@ -145,18 +146,10 @@ const MedStructModuleComponent: React.FC<MedStructModuleProps> = ({ currentUser 
     setHumanReviewStatus('PENDING_REVIEW');
 
     try {
-      const res = await fetch('/api/med-struct', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          clinicalNote,
-          deIdentifiedConfirmed,
-        }),
+      const data = await apiPostMedStruct({
+        clinicalNote,
+        deIdentifiedConfirmed,
       });
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.message || 'Unable to structure clinical note.');
-      }
       setStructuredOutput(data.structuredData);
       setValidationReport(data.validationReport);
       setMatchedIcd10(data.matchedIcd10Conditions || []);
