@@ -23,15 +23,15 @@ const VALID_WORKSPACES: ReadonlySet<string> = new Set([
 ]);
 
 export const STORAGE_KEYS = {
-  ACTIVE_TAB: 'hb_active_tab_v1',
-  GLOBAL_SEARCH_QUERY: 'hb_global_search_query_v1',
-  LANGUAGE: 'hb_language_v1',
-  HEALTHACCESS_PREFILL: 'hb_healthaccess_prefill_v1',
-  HEALTHGUIDE_STATE: 'hb_healthguide_state_v1',
-  HEALTHACCESS_STATE: 'hb_healthaccess_state_v1',
-  CLINICCONNECT_STATE: 'hb_clinicconnect_state_v1',
-  MEDSTRUCT_STATE: 'hb_medstruct_state_v1',
-  BIOSCIENCE_STATE: 'hb_bioscience_state_v1',
+  ACTIVE_TAB: 'hb_active_tab_v2',
+  GLOBAL_SEARCH_QUERY: 'hb_global_search_query_v2',
+  LANGUAGE: 'hb_language_v2',
+  HEALTHACCESS_PREFILL: 'hb_healthaccess_prefill_v2',
+  HEALTHGUIDE_STATE: 'hb_healthguide_state_v2',
+  HEALTHACCESS_STATE: 'hb_healthaccess_state_v2',
+  CLINICCONNECT_STATE: 'hb_clinicconnect_state_v2',
+  MEDSTRUCT_STATE: 'hb_medstruct_state_v2',
+  BIOSCIENCE_STATE: 'hb_bioscience_state_v2',
 } as const;
 
 export interface CachedConversationTurn {

@@ -328,7 +328,7 @@ describe('HealthBridge AI — Clinical Core, Grounding, Privacy & Schema Validat
         language: 'en',
         useSearchGrounding: true,
       });
-      expect(chatRes.answer).toContain('Grounded Clinical');
+      expect(chatRes.answer).toContain('Clinical & Public Health Evidence Synthesis');
       expect(chatRes.citations.length).toBeGreaterThan(0);
 
       const haRes = await apiPostHealthAccess({
@@ -375,6 +375,44 @@ describe('HealthBridge AI — Clinical Core, Grounding, Privacy & Schema Validat
       globalThis.fetch = originalFetch;
     }
   });
+
+  it('13. Deterministic clinical synthesis accurately handles comma-formatted lab values, specific doctor lookups, and all synthetic notes', async () => {
+    const {
+      synthesizeDeterministicClinicConnect,
+      synthesizeDeterministicMedStruct,
+      synthesizeDeterministicPrivateMedVerification,
+    } = await import('../src/shared/clinicalEngine');
+
+    // Verify comma-formatted platelet counts and threshold (< 200) parsing
+    const customReport = [
+      'Platelet Count: 245,000 /mcL (150,000 - 450,000)',
+      'Total Cholesterol: 228 mg/dL (< 200)',
+      'HDL Cholesterol: 34 mg/dL (> 40)',
+    ].join('\n');
+    const pmVerify = synthesizeDeterministicPrivateMedVerification(customReport, false);
+    expect(pmVerify.extractedFindings.length).toBe(3);
+    const chol = pmVerify.extractedFindings.find((f) => f.parameterName.includes('Cholesterol'));
+    expect(chol?.statusIndicator).toBe('OUTSIDE_REFERENCE_RANGE');
+
+    // Verify specific doctor query does not trigger false escalation
+    const docQuery = synthesizeDeterministicClinicConnect(
+      'When is Dr. Ananya Reddy available and what is her fee?',
+      'en'
+    );
+    expect(docQuery.requiresStaffEscalation).toBe(false);
+    expect(docQuery.answer).toContain('Ananya Reddy');
+    expect(docQuery.answer).toContain('500');
+
+    // Verify all 3 synthetic clinical notes produce valid, grounded structured records
+    for (const sampleNote of SYNTHETIC_CLINICAL_NOTES) {
+      const structured = synthesizeDeterministicMedStruct(sampleNote.noteText);
+      const validation = validateMedStructOutput(structured, sampleNote.noteText);
+      expect(validation.isValid).toBe(true);
+      expect(validation.groundingCheckPassed).toBe(true);
+      expect(structured.plan.length).toBeGreaterThanOrEqual(2);
+    }
+  });
 });
+
 
 

@@ -270,9 +270,16 @@ const BioScienceModuleComponent: React.FC<BioScienceModuleProps> = ({
   useEffect(() => {
     if (!resolvedData) {
       handleResolveTarget(searchQuery || 'TP53');
+    } else if (
+      initialQuery &&
+      initialQuery.trim() &&
+      initialQuery.trim().toLowerCase() !== resolvedData.query.trim().toLowerCase()
+    ) {
+      setSearchQuery(initialQuery.trim());
+      handleResolveTarget(initialQuery.trim());
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [initialQuery]);
 
   return (
     <div className="space-y-8">
@@ -417,21 +424,39 @@ const BioScienceModuleComponent: React.FC<BioScienceModuleProps> = ({
 
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 border-t border-slate-100 text-xs font-mono">
                   <div className="p-2 bg-slate-50 rounded border border-slate-200">
-                    <div className="text-[10px] text-slate-500 uppercase">Organism</div>
+                    <div className="text-[10px] text-slate-500 uppercase">
+                      {resolvedData.proteinData ? 'Organism' : resolvedData.drugData ? 'PubChem CID' : 'Entity Type'}
+                    </div>
                     <div className="font-semibold text-slate-900 truncate">
-                      {resolvedData.proteinData?.organism || 'Homo sapiens'}
+                      {resolvedData.proteinData
+                        ? resolvedData.proteinData.organism
+                        : resolvedData.drugData
+                        ? `CID ${resolvedData.drugData.cid}`
+                        : resolvedData.entityType.toUpperCase()}
                     </div>
                   </div>
                   <div className="p-2 bg-slate-50 rounded border border-slate-200">
-                    <div className="text-[10px] text-slate-500 uppercase">UniProt Accession</div>
-                    <div className="font-semibold text-teal-700">
-                      {resolvedData.proteinData?.uniprotAccession || 'P04637'}
+                    <div className="text-[10px] text-slate-500 uppercase">
+                      {resolvedData.proteinData ? 'UniProt Accession' : resolvedData.drugData ? 'Molecular Formula' : 'ClinVar Variant'}
+                    </div>
+                    <div className="font-semibold text-teal-700 truncate">
+                      {resolvedData.proteinData
+                        ? resolvedData.proteinData.uniprotAccession
+                        : resolvedData.drugData
+                        ? resolvedData.drugData.molecularFormula
+                        : resolvedData.variantData?.variantIdentifier || 'Indexed'}
                     </div>
                   </div>
                   <div className="p-2 bg-slate-50 rounded border border-slate-200">
-                    <div className="text-[10px] text-slate-500 uppercase">Sequence Length</div>
+                    <div className="text-[10px] text-slate-500 uppercase">
+                      {resolvedData.proteinData ? 'Sequence Length' : resolvedData.drugData ? 'Molecular Weight' : 'Literature'}
+                    </div>
                     <div className="font-semibold text-slate-900">
-                      {resolvedData.proteinData?.sequenceLength || 393} aa
+                      {resolvedData.proteinData
+                        ? `${resolvedData.proteinData.sequenceLength} aa`
+                        : resolvedData.drugData
+                        ? `${resolvedData.drugData.molecularWeight} Da`
+                        : `${resolvedData.literatureArticles.length} articles`}
                     </div>
                   </div>
                   <div className="p-2 bg-slate-50 rounded border border-slate-200">

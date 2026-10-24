@@ -56,6 +56,26 @@ export interface RealtimeClinicalDatasetPayload {
     pubYear: string;
     url: string;
   }>;
+  whoOutbreakAlerts?: Array<{
+    title: string;
+    summary: string;
+    publishedAt: string;
+    url: string;
+  }>;
+  activeClinicalTrials?: Array<{
+    nctId: string;
+    title: string;
+    status: string;
+    lastUpdated: string;
+    url: string;
+  }>;
+  liveWebSearchResults?: Array<{
+    title: string;
+    snippet: string;
+    source: string;
+    publishedAt: string;
+    url: string;
+  }>;
 }
 
 interface ConversationTurn {
@@ -87,9 +107,9 @@ interface HealthGuideModuleProps {
 
 const SAMPLE_QUESTIONS = [
   {
-    en: 'What are the current WHO and MoHFW guidelines for dengue fever prevention and warning signs?',
-    te: 'డెంగ్యూ జ్వరం నివారణ మరియు ప్రమాద సంకేతాలపై WHO మరియు ఆరోగ్య మంత్రిత్వ శాఖ మార్గదర్శకాలు ఏమిటి?',
-    tag: 'Dengue Guidelines & Live Dataset',
+    en: 'What are the latest real-time WHO disease outbreak news and current dengue updates?',
+    te: 'ప్రస్తుత రియల్-టైమ్ WHO వ్యాధి వ్యాప్తి వార్తలు మరియు డెంగ్యూ జ్వరం తాజా మార్గదర్శకాలు ఏమిటి?',
+    tag: 'Live Real-Time Search & WHO Outbreaks',
   },
   {
     en: 'Analyze my connected medical record lab values (HbA1c 7.1%, Fasting Glucose 134 mg/dL) and explain what they mean.',
@@ -312,6 +332,9 @@ const HealthGuideModuleComponent: React.FC<HealthGuideModuleProps> = ({
           })),
           pubmedTotalHits: data.pubmedTotalHits || 0,
           pubmedArticles: data.pubmedArticles || [],
+          whoOutbreakAlerts: data.whoOutbreakAlerts || [],
+          activeClinicalTrials: data.activeClinicalTrials || [],
+          liveWebSearchResults: data.liveWebSearchResults || [],
         });
       }
     } catch {
@@ -725,14 +748,44 @@ const HealthGuideModuleComponent: React.FC<HealthGuideModuleProps> = ({
                   <div className="text-sm whitespace-pre-line leading-relaxed">{turn.text}</div>
                 )}
 
-                {/* Inline Real-Time Dataset Snapshot inside Assistant Turn */}
+                {/* Executed Real-Time Search Queries & Live Dataset Snapshot inside Assistant Turn */}
+                {turn.role === 'assistant' &&
+                  turn.searchQueries &&
+                  turn.searchQueries.length > 0 && (
+                    <div className="mt-3 p-2.5 bg-teal-50/60 border border-teal-200 rounded-lg space-y-1 text-xs">
+                      <div className="flex items-center justify-between font-mono text-teal-800 font-semibold text-[11px]">
+                        <span className="flex items-center gap-1.5">
+                          <Globe className="w-3.5 h-3.5 text-teal-700" />
+                          <span>REAL-TIME SEARCH QUERIES EXECUTED</span>
+                        </span>
+                        {turn.realtimeDataset?.fetchedAt && (
+                          <span className="text-[10px] text-teal-700">
+                            Fetched Live: {new Date(turn.realtimeDataset.fetchedAt).toLocaleTimeString()}
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex flex-wrap gap-1.5 pt-0.5">
+                        {turn.searchQueries.slice(0, 4).map((sq, idx) => (
+                          <span
+                            key={idx}
+                            className="px-2 py-0.5 bg-white border border-teal-200 rounded font-mono text-[11px] text-slate-700"
+                          >
+                            {sq}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
                 {turn.realtimeDataset &&
                   (turn.realtimeDataset.icd10Conditions.length > 0 ||
-                    turn.realtimeDataset.rxNormMedications.length > 0) && (
+                    turn.realtimeDataset.rxNormMedications.length > 0 ||
+                    (turn.realtimeDataset.whoOutbreakAlerts &&
+                      turn.realtimeDataset.whoOutbreakAlerts.length > 0)) && (
                     <div className="mt-3 p-3 bg-white border border-slate-200 rounded-lg space-y-2 text-xs">
                       <div className="flex items-center justify-between font-mono text-teal-700 font-semibold">
                         <span>
-                          LIVE NIH DATASET MATCH ({turn.realtimeDataset.queryTerm.toUpperCase()})
+                          LIVE REAL-TIME DATASET MATCH ({turn.realtimeDataset.queryTerm.toUpperCase()})
                         </span>
                         <span>
                           PubMed Hits: {turn.realtimeDataset.pubmedTotalHits.toLocaleString()}
@@ -756,6 +809,16 @@ const HealthGuideModuleComponent: React.FC<HealthGuideModuleProps> = ({
                             .join(' · ')}
                         </div>
                       )}
+                      {turn.realtimeDataset.whoOutbreakAlerts &&
+                        turn.realtimeDataset.whoOutbreakAlerts.length > 0 && (
+                          <div className="text-slate-700">
+                            <strong>WHO Outbreak Surveillance:</strong>{' '}
+                            {turn.realtimeDataset.whoOutbreakAlerts
+                              .slice(0, 2)
+                              .map((w) => `${w.title} (${w.publishedAt})`)
+                              .join(' · ')}
+                          </div>
+                        )}
                     </div>
                   )}
 
@@ -1228,6 +1291,59 @@ const HealthGuideModuleComponent: React.FC<HealthGuideModuleProps> = ({
                     ))}
                   </div>
                 </div>
+
+                {/* Live WHO Disease Outbreak News & ClinicalTrials.gov Surveillance */}
+                {((liveDataset.whoOutbreakAlerts && liveDataset.whoOutbreakAlerts.length > 0) ||
+                  (liveDataset.activeClinicalTrials &&
+                    liveDataset.activeClinicalTrials.length > 0)) && (
+                  <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg space-y-1.5">
+                    <div className="flex items-center justify-between text-xs font-bold text-slate-900">
+                      <span className="flex items-center gap-1.5">
+                        <Globe className="w-3.5 h-3.5 text-teal-700" />
+                        <span>WHO Outbreak News &amp; ClinicalTrials.gov</span>
+                      </span>
+                      <span className="font-mono text-teal-700">Live Feed</span>
+                    </div>
+                    <div className="space-y-1.5 max-h-44 overflow-y-auto">
+                      {(liveDataset.whoOutbreakAlerts || []).map((alert, idx) => (
+                        <a
+                          key={`who-${idx}`}
+                          href={alert.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="block text-xs bg-white p-2 rounded border border-slate-200 hover:border-teal-600 transition-colors"
+                        >
+                          <div className="font-semibold text-slate-900 line-clamp-1">
+                            WHO Alert: {alert.title}
+                          </div>
+                          <div className="text-slate-500 font-mono text-[11px] flex items-center justify-between mt-0.5">
+                            <span>World Health Organization</span>
+                            <span className="text-teal-700">{alert.publishedAt}</span>
+                          </div>
+                        </a>
+                      ))}
+                      {(liveDataset.activeClinicalTrials || []).map((trial, idx) => (
+                        <a
+                          key={`ct-${idx}`}
+                          href={trial.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="block text-xs bg-white p-2 rounded border border-slate-200 hover:border-teal-600 transition-colors"
+                        >
+                          <div className="font-semibold text-slate-900 line-clamp-1">
+                            Trial: {trial.title}
+                          </div>
+                          <div className="text-slate-500 font-mono text-[11px] flex items-center justify-between mt-0.5">
+                            <span>
+                              {trial.nctId} · {trial.status}
+                            </span>
+                            <span className="text-teal-700">Updated: {trial.lastUpdated}</span>
+                          </div>
+                        </a>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>

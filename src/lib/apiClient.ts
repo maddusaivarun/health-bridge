@@ -35,7 +35,7 @@ async function safeApiFetch<T>(
 ): Promise<T> {
   try {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 8500);
+    const timeoutId = setTimeout(() => controller.abort(), 25000);
     const res = await fetch(url, {
       ...options,
       signal: controller.signal,
@@ -133,7 +133,7 @@ export async function apiPostChat(payload: {
       }
 
       const liveDataset = await fetchRealtimeClinicalDatasets(trimmedQuery);
-      const rawSynthesis = synthesizeGroundedHealthGuideResponse(
+      const rawSynthesis = await synthesizeGroundedHealthGuideResponse(
         trimmedQuery,
         payload.language,
         liveDataset,
@@ -188,17 +188,21 @@ export async function apiPostChat(payload: {
           })),
           pubmedTotalHits: liveDataset.totalPubMedHits,
           pubmedArticles: liveDataset.pubmedArticles,
+          whoOutbreakAlerts: liveDataset.whoOutbreakAlerts || [],
+          activeClinicalTrials: liveDataset.activeClinicalTrials || [],
+          liveWebSearchResults: liveDataset.liveWebSearchResults || [],
         },
         searchQueries: [
-          `NIH PubMed: ${liveDataset.queryUsed}`,
-          `NIH NLM ICD-10-CM & RxNorm: ${liveDataset.queryTerm}`,
+          `Live Web & Wikipedia Search: ${liveDataset.queryUsed}`,
+          `WHO Disease Outbreak News & NIH PubMed: ${liveDataset.queryUsed}`,
+          `ClinicalTrials.gov & NIH NLM ICD-10-CM / RxNorm: ${liveDataset.queryTerm}`,
         ],
         searchPerformed: true,
-        groundingEngine: 'Live NIH NLM ICD-10-CM + RxNorm + EuropePMC / PubMed Engine',
+        groundingEngine: 'Live Web + WHO Outbreak + NIH NLM + PubMed + ClinicalTrials.gov Engine',
         followUpSuggestions,
         latencyMs: Date.now() - startMs,
         uncertaintyNotice:
-          'Grounded in live NIH NLM ICD-10-CM, RxNorm, and PubMed datasets. Educational guidance only; does not replace a licensed physician.',
+          'Grounded in live real-time web search, WHO Disease Outbreak News, NIH NLM ICD-10-CM/RxNorm, ClinicalTrials.gov, and PubMed datasets. Educational guidance only; does not replace a licensed physician.',
       };
     }
   );

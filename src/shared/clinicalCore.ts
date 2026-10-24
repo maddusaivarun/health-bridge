@@ -220,9 +220,11 @@ export function validateMedStructOutput(
         errors.push(`observationsAndMeasurements[${idx}].value is required.`);
       } else {
         // Verify numeric tokens in value appear in sourceClinicalNote to prevent hallucinated vitals
-        const numericTokens = m.value.match(/\d+(?:\.\d+)?/g) || [];
+        const normalizedSourceNoCommas = normalizedSource.replace(/,/g, '');
+        const cleanValNoCommas = m.value.replace(/,/g, '');
+        const numericTokens = cleanValNoCommas.match(/\d+(?:\.\d+)?/g) || [];
         for (const token of numericTokens) {
-          if (!normalizedSource.includes(token)) {
+          if (!normalizedSource.includes(token) && !normalizedSourceNoCommas.includes(token)) {
             groundingCheckPassed = false;
             errors.push(
               `Unverified measurement value "${m.value}" (${m.metric}): numeric token "${token}" was not found in the source clinical note.`
@@ -300,7 +302,7 @@ export function getSafeCitationUrl(rawUri?: string, title?: string): string {
       return `https://www.ncbi.nlm.nih.gov/pmc/articles/${titlePmcMatch[1]}/`;
     }
     if (cleanTitle) {
-      return `https://www.google.com/search?q=${encodeURIComponent(cleanTitle)}`;
+      return `https://www.google.com/search?q=${encodeURIComponent(queryTermFromTitle(cleanTitle))}`;
     }
     return 'https://scholar.google.com';
   }
@@ -352,6 +354,10 @@ export function getSafeCitationUrl(rawUri?: string, title?: string): string {
   return 'https://scholar.google.com';
 }
 
+function queryTermFromTitle(title: string): string {
+  return title.slice(0, 140);
+}
+
 export function classifySourceAuthority(uri: string, title: string): GroundedSourceCitation {
   const safeTitle = (title || 'Untitled Web Source').trim();
   const normalizedUri = getSafeCitationUrl(uri, safeTitle);
@@ -385,7 +391,8 @@ export function classifySourceAuthority(uri: string, title: string): GroundedSou
     hostname.includes('nih.gov') ||
     hostname.includes('ncbi.nlm.nih.gov') ||
     hostname.includes('medlineplus.gov') ||
-    hostname.includes('nlm.nih.gov')
+    hostname.includes('nlm.nih.gov') ||
+    hostname.includes('pubchem.ncbi.nlm.nih.gov')
   ) {
     organization = 'National Institutes of Health (NIH / NLM)';
     authorityTier = 'PUBLIC_HEALTH_AUTHORITY';
@@ -395,6 +402,9 @@ export function classifySourceAuthority(uri: string, title: string): GroundedSou
   } else if (
     hostname.includes('doi.org') ||
     hostname.includes('europepmc.org') ||
+    hostname.includes('ebi.ac.uk') ||
+    hostname.includes('uniprot.org') ||
+    hostname.includes('rcsb.org') ||
     hostname.includes('thelancet.com') ||
     hostname.includes('nejm.org') ||
     hostname.includes('bmj.com') ||
@@ -443,8 +453,12 @@ export interface ParsedReportMetric {
   unit: string;
   referenceRange: string;
   flag: 'WITHIN_RANGE' | 'OUTSIDE_RANGE' | 'RANGE_NOT_SPECIFIED';
+  direction?: 'HIGH' | 'LOW' | 'NORMAL' | 'UNSPECIFIED';
   rawLine: string;
 }
+
+const NON_BIOMARKER_HEADER_REGEX =
+  /^(?:record\s+reference|collection\s+date|date|patient|name|age\/sex|age|sex|gender|specimen|sample|doctor|physician|referred\s+by|hospital|clinic|lab|uhid|mrn|phone|address)\b/i;
 
 export function extractExplicitReportMetrics(reportText: string): {
   metrics: ParsedReportMetric[];
@@ -454,28 +468,78 @@ export function extractExplicitReportMetrics(reportText: string): {
   const metrics: ParsedReportMetric[] = [];
   const missingOrUnreadableWarnings: string[] = [];
 
-  // Pattern matching lines like: "Hemoglobin (Hb): 10.4 g/dL (Ref: 12.0 - 15.5)" or "HbA1c : 7.8 % [4.0 - 5.6]"
-  const lineRegex = /^([A-Za-z0-9\s(),/.-]{2,45}?)\s*[:=-]\s*(\d+(?:\.\d+)?)\s*([a-zA-Z%/\u00B5\d.^]+)?(?:\s*(?:\(|\[|Ref\s*:?\s*|Range\s*:?\s*)?\s*(\d+(?:\.\d+)?\s*-\s*\d+(?:\.\d+)?|< ?\d+(?:\.\d+)?|> ?\d+(?:\.\d+)?)\s*(?:\)|\])?)?$/i;
+  // Supports comma-separated numbers (e.g., 245,000), units, and flexible reference ranges
+  const lineRegex =
+    /^([A-Za-z0-9\s(),/+.-]{2,55}?)\s*(?:[:=|-]|\s{2,})\s*(\d{1,3}(?:,\d{3})+|\d+(?:\.\d+)?)\s*([a-zA-Z%/\u00B5\u03BC\d.^+-]+(?:\s*\/\s*[a-zA-Z\u00B5\u03BC\d.^]+)?)?(?:\s*(?:\(|\[|Ref(?:erence)?(?:\s*Interval|\s*Range)?\s*:?\s*|Range\s*:?\s*|Normal\s*:?\s*)?\s*((?:\d{1,3}(?:,\d{3})+|\d+(?:\.\d+)?)\s*(?:-|–|to)\s*(?:\d{1,3}(?:,\d{3})+|\d+(?:\.\d+)?)|(?:<=?|>=?|Up\s+to)\s*(?:\d{1,3}(?:,\d{3})+|\d+(?:\.\d+)?))(?:[^)\]]*)?(?:\)|\])?)?/i;
 
   for (const line of lines) {
-    if (/illegible|unreadable|blurred|missing|sample\s+hemolyzed|\?\?\?/i.test(line)) {
+    if (/illegible|unreadable|blurred|missing|sample\s+hemolyzed|not\s+printed|\?\?\?/i.test(line)) {
       missingOrUnreadableWarnings.push(`Ambiguous or unreadable report entry flagged: "${line}"`);
       continue;
     }
+    if (NON_BIOMARKER_HEADER_REGEX.test(line)) {
+      continue;
+    }
+
     const match = line.match(lineRegex);
     if (match) {
-      const testName = match[1].trim();
-      const observedValue = match[2].trim();
-      const unit = (match[3] || 'Not specified').trim();
-      const referenceRange = (match[4] || 'Not provided in report').trim();
-      let flag: ParsedReportMetric['flag'] = 'RANGE_NOT_SPECIFIED';
+      const testName = match[1].replace(/^[-*•\s]+/, '').trim();
+      if (NON_BIOMARKER_HEADER_REGEX.test(testName) || /^\d+$/.test(testName)) {
+        continue;
+      }
 
-      const numVal = parseFloat(observedValue);
-      const rangeParts = referenceRange.match(/(\d+(?:\.\d+)?)\s*-\s*(\d+(?:\.\d+)?)/);
-      if (rangeParts && !isNaN(numVal)) {
-        const low = parseFloat(rangeParts[1]);
-        const high = parseFloat(rangeParts[2]);
-        flag = numVal < low || numVal > high ? 'OUTSIDE_RANGE' : 'WITHIN_RANGE';
+      const observedValue = match[2].trim();
+      const rawUnit = (match[3] || '').trim();
+      // Guard against capturing "Ref" or "Normal" as the unit if no unit was provided
+      const unit = /^(?:ref|range|normal|high|low)$/i.test(rawUnit)
+        ? 'Not specified'
+        : rawUnit || 'Not specified';
+      const referenceRange = (match[4] || 'Not provided in report').trim();
+
+      let flag: ParsedReportMetric['flag'] = 'RANGE_NOT_SPECIFIED';
+      let direction: ParsedReportMetric['direction'] = 'UNSPECIFIED';
+
+      const numVal = parseFloat(observedValue.replace(/,/g, ''));
+      if (!isNaN(numVal) && referenceRange !== 'Not provided in report') {
+        const cleanRef = referenceRange.replace(/,/g, '');
+        const rangeParts = cleanRef.match(/(\d+(?:\.\d+)?)\s*(?:-|–|to)\s*(\d+(?:\.\d+)?)/i);
+        const lessParts = cleanRef.match(/^(?:<=?|Up\s+to)\s*(\d+(?:\.\d+)?)/i);
+        const greaterParts = cleanRef.match(/^>=?\s*(\d+(?:\.\d+)?)/i);
+
+        if (rangeParts) {
+          const low = parseFloat(rangeParts[1]);
+          const high = parseFloat(rangeParts[2]);
+          if (numVal < low) {
+            flag = 'OUTSIDE_RANGE';
+            direction = 'LOW';
+          } else if (numVal > high) {
+            flag = 'OUTSIDE_RANGE';
+            direction = 'HIGH';
+          } else {
+            flag = 'WITHIN_RANGE';
+            direction = 'NORMAL';
+          }
+        } else if (lessParts) {
+          const maxVal = parseFloat(lessParts[1]);
+          const inclusive = cleanRef.startsWith('<=');
+          if ((inclusive && numVal > maxVal) || (!inclusive && numVal >= maxVal)) {
+            flag = 'OUTSIDE_RANGE';
+            direction = 'HIGH';
+          } else {
+            flag = 'WITHIN_RANGE';
+            direction = 'NORMAL';
+          }
+        } else if (greaterParts) {
+          const minVal = parseFloat(greaterParts[1]);
+          const inclusive = cleanRef.startsWith('>=');
+          if ((inclusive && numVal < minVal) || (!inclusive && numVal <= minVal)) {
+            flag = 'OUTSIDE_RANGE';
+            direction = 'LOW';
+          } else {
+            flag = 'WITHIN_RANGE';
+            direction = 'NORMAL';
+          }
+        }
       }
 
       metrics.push({
@@ -484,6 +548,7 @@ export function extractExplicitReportMetrics(reportText: string): {
         unit,
         referenceRange,
         flag,
+        direction,
         rawLine: line,
       });
     }
