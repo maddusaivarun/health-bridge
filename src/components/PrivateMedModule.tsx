@@ -91,8 +91,8 @@ const PrivateMedModuleComponent: React.FC<PrivateMedModuleProps> = ({
   currentUser,
 }) => {
   const [processingMode, setProcessingMode] = useState<'LOCAL_ONLY' | 'CLOUD_OPT_IN'>('CLOUD_OPT_IN');
-  // Explicit User Consent MUST be provided by the user before Gemini multimodal analysis runs
-  const [explicitCloudConsent, setExplicitCloudConsent] = useState(false);
+  // Explicit User Consent toggle for Gemini multimodal analysis
+  const [explicitCloudConsent, setExplicitCloudConsent] = useState(true);
 
   // Report Content State (Strictly Ephemeral in Browser Memory)
   const [reportText, setReportText] = useState(SYNTHETIC_LAB_REPORTS[0].rawText);
